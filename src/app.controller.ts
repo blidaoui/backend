@@ -2,12 +2,12 @@ import {
   BadRequestException,
   Body,
   Controller,
-  Delete,
-  Put,
   Get,
   Param,
   Post,
+  Put,
   Req,
+  Delete,
   Res,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -15,9 +15,7 @@ import { AppService } from './app.service';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { Response, Request } from 'express';
-import { Observable } from 'rxjs';
 import { User } from './user.entity';
-import { UpdateResult } from 'typeorm';
 
 @Controller()
 export class AppController {
@@ -58,54 +56,40 @@ export class AppController {
     if (!(await bcrypt.compare(password, user.password))) {
       throw new BadRequestException('invalid credentials');
     }
-    const jwt = await this.jwtService.signAsync({ id: user.user_id });
+    const jwt = await this.jwtService.signAsync({ user_id: user.user_id });
 
     response.cookie('jwt', jwt, { httpOnly: true });
     return { message: 'success' };
   }
-  // @Get('user')
-  // async user(@Req() request: Request) {
-  //   try {
-  //     const cookie = request.cookies['jwt'];
-  //     const data = await this.jwtService.verifyAsync(cookie);
-  //     if (!data) {
-  //       throw new UnauthorizedException('invalid credentials');
-  //     }
-  //     const user = await this.appService.findOne({
-  //       where: { user_id: data['user_id'] },
-  //     });
+  @Get()
+  async findAll(): Promise<User[]> {
+    return await this.appService.findall();
+  }
 
-  //     const { password, ...result } = user;
-  //     return result;
-  //   } catch (e) {
-  //     throw new UnauthorizedException();
-  //   }
-  // }
   @Get(':id')
   async findOne(@Param('user_id') user_id: number): Promise<User> {
-    const user = await this.appService.findOne({wher: {user_id}});
+    const user = await this.appService.findOne({where:{user_id}});
     if (!user) {
       throw new Error('User not found');
     } else {
       return user;
     }
   }
-  @Get()
-  findAll():Observable<User[]>{
-      return(this.appService.findAllUser())
+  //update user
+  @Put(':user_id')
+  async update(@Param('user_id') user_id: number, @Body() user: User): Promise<User> {
+    return this.appService.update(user_id, user);
   }
 
-  @Put(':id')
-  update(
-      @Param('user_id') user_id:number,
-      @Body() user:User 
-  ):Observable<UpdateResult>{
-      return(this.appService.updateUser(user_id,user))
-  }
-
+  //delete user
   @Delete(':user_id')
-  delete(@Param('user_id') user_id:number){
-      return(this.appService.deleteUser(user_id))
+  async delete(@Param('user_id') user_id: number): Promise<void> {
+    //handle the error if user not found
+    const user = await this.appService.findOne(user_id);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    return this.appService.delete(user_id);
   }
 
   @Post('logout')
